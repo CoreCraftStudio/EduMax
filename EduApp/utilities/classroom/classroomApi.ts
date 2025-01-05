@@ -50,3 +50,24 @@ export const createClassroom = async (
     throw new Error('Unable to create classroom.');
   }
 };
+
+
+export const deleteClassroom = async (
+  token: string,
+  classroomId: number
+): Promise<void> => {
+  console.log('Deleting classroom with ID:', classroomId);
+  try {
+    const response = await api.delete(`/classrooms/${classroomId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    console.log('Classroom deleted successfully:', response.status);
+  } catch (error: any) {
+    console.error('Error deleting classroom:', error?.response || error);
+    throw new Error(
+      error?.response?.data?.message || 'Failed to delete classroom.'
+    );
+  }
+};
