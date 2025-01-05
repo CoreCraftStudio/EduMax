@@ -1,81 +1,54 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
-import { login, AuthRequest, AuthResponse } from '@/utilities/authApi';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Image } from 'react-native';
+import LoginScreen from './login';
+import SignupScreen from './signup';
 
-const LoginScreen: React.FC = () => {
-  const [formData, setFormData] = useState<AuthRequest>({
-    username: '',
-    profileName: '',
-    email: '',
-    phone: '',
-    type: '',
-    password: '',
-  });
+const AuthLayout: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
+  const [slideAnimation] = useState(new Animated.Value(0));
 
-  const router = useRouter();
-
-  const handleInputChange = (field: keyof AuthRequest, value: string) => {
-    setFormData({ ...formData, [field]: value });
-  };
-
-  const handleLogin = async () => {
-    try {
-      const response: AuthResponse = await login(formData);
-      const { member, type, token } = response;
-     console.log(`Member: ${member}`); // Example logging
-     console.log(`Type: ${type}`); // Example logging
-      console.log(`Token: ${token}`); // Example logging
-      
-
-      Alert.alert('Success', `Welcome back, ${member.profileName || member.username}!`);
-
-      // Navigate to dynamic route with username and type
-      router.push({
-        pathname: '/(tabs)',
-        params: { username: member.username ,type}, // Pass type as a parameter
-      });
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
-      Alert.alert('Error', errorMessage);
+  const toggleTab = (tab: 'login' | 'signup') => {
+    if (tab !== activeTab) {
+      setActiveTab(tab);
+      Animated.timing(slideAnimation, {
+        toValue: tab === 'signup' ? 1 : 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Username"
-        value={formData.username}
-        onChangeText={(value) => handleInputChange('username', value)}
+      <Image
+        source={require('../assets/images/icon.png')} // Replace with your image path
+        style={styles.backgroundImage}
+        resizeMode="cover"
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Profile Name"
-        value={formData.profileName}
-        onChangeText={(value) => handleInputChange('profileName', value)}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={formData.email}
-        onChangeText={(value) => handleInputChange('email', value)}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Phone"
-        value={formData.phone}
-        onChangeText={(value) => handleInputChange('phone', value)}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-        value={formData.password}
-        onChangeText={(value) => handleInputChange('password', value)}
-      />
-      <Button title="Login" onPress={handleLogin} />
+      <View style={styles.overlay}>
+        <View style={styles.sliderContainer}>
+          <Animated.View
+            style={[
+              styles.slider,
+              {
+                left: slideAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0%', '50%'],
+                }),
+              },
+            ]}
+          />
+          <TouchableOpacity style={styles.tab} onPress={() => toggleTab('login')}>
+            <Text style={styles.tabText}>Login</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.tab} onPress={() => toggleTab('signup')}>
+            <Text style={styles.tabText}>Sign Up</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.formContainer}>
+          {activeTab === 'login' ? <LoginScreen /> : <SignupScreen />}
+        </View>
+      </View>
     </View>
   );
 };
@@ -83,24 +56,56 @@ const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject, // Full image coverage
+    opacity: 1, // Fully show the image
+  },
+  overlay: {
+    flex: 1,
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    alignItems: 'center',
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.5)', // Semi-transparent overlay to make text visible
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  input: {
+  sliderContainer: {
+    flexDirection: 'row',
+    width: '80%',
+    height: 50,
+    borderRadius: 25,
     borderWidth: 1,
     borderColor: '#ccc',
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 20,
+    marginTop: 70,
+    position: 'relative',
+  },
+  slider: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: '50%',
+    backgroundColor: '#007bff',
+    borderRadius: 25,
+  },
+  tab: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabText: {
     fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  formContainer: {
+    width: '100%',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
 });
 
-export default LoginScreen;
+export default AuthLayout;
