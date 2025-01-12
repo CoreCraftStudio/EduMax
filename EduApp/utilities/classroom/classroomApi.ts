@@ -105,7 +105,7 @@ export const addStudentToClassroom = async (studentUsername: string, classroomId
         },
       }
     );
-    console.log("Success full in delete:", response.data); // Log success if the request works
+    console.log("Success full in addition:", response.data); // Log success if the request works
     return response.data;
     
   } catch (error) {
@@ -115,24 +115,37 @@ export const addStudentToClassroom = async (studentUsername: string, classroomId
 };
 
 
-export const dropStudentFromClassroom = async (studentUsername: string, classroomId: number): Promise<StudentResponseDTO> => {
+export const deleteStudentFromClassroom = async (
+  studentUsername: string,
+  classroomId: number
+): Promise<StudentResponseDTO> => {
   try {
-    const token = await getToken(); // Get token from storage
-    const response = await api.delete<StudentResponseDTO>(`/classrooms/${classroomId}`,  {
-      headers: {
-        Authorization: `Bearer ${token}`, // Pass JWT token in the header
-      },
-      params: {
-        studentUsername, // Pass the student username as a query parameter
-      },
-    });
+    const token = await getToken(); // Get the authentication token
+
+    // Make DELETE request
+    const response = await api.delete<StudentResponseDTO>(
+      `/classrooms/${classroomId}`, // Endpoint
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Pass JWT token in Authorization header
+        },
+        params: {
+          studentUsername, // Pass the student username as a query parameter
+        },
+      }
+    );
+
+    console.log('Student successfully deleted:', response.data);
     return response.data;
-  } catch (error) {
-    console.error('Error dropping student from classroom:', error);
-    throw new Error('Unable to drop student from classroom.');
+  } catch (error: any) {
+    console.error('Error deleting student:', error);
+
+    // Handle error with specific messaging
+    throw new Error(
+      error.response?.data?.message || 'Unable to delete student from the classroom.'
+    );
   }
 };
-
 
 export const updateParentInClassroom = async (
   studentUsername: string,
