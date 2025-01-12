@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
   View,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { createquiz } from '../../utilities/classroom/quizzApi';
 
 type Answer = {
   text: string;
@@ -21,11 +22,12 @@ type Question = {
 };
 
 type Props = {
+  classroomId: number; // Receiving classroomId as a prop
   onSubmit: (quiz: any) => void;
   onCancel: () => void;
 };
 
-export default function CreateQuizScreen({ onSubmit, onCancel }: Props) {
+export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Props) {
   const [quizName, setQuizName] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState('');
@@ -36,7 +38,13 @@ export default function CreateQuizScreen({ onSubmit, onCancel }: Props) {
     { text: '', isCorrect: false },
     { text: '', isCorrect: false },
   ]);
-  const [directAnswer, setDirectAnswer] = useState(''); // For direct answer questions
+  const [directAnswer, setDirectAnswer] = useState('');
+
+  useEffect(() => {
+    if (!classroomId) {
+      Alert.alert('Error', 'Classroom ID is required to create a quiz.');
+    }
+  }, [classroomId]);
 
   const addQuestion = () => {
     if (!currentQuestion) {
@@ -79,16 +87,35 @@ export default function CreateQuizScreen({ onSubmit, onCancel }: Props) {
     setDirectAnswer('');
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!quizName || questions.length === 0) {
       Alert.alert('Error', 'Quiz must have a name and at least one question.');
       return;
     }
-    onSubmit({
-      id: Date.now(),
+
+    const QuizRequestDTO = {
       title: quizName,
-      questions,
-    });
+      name: quizName,
+      description: 'This is a sample quiz to test knowledge on various subjects.',
+      classroomId: classroomId, // Use the classroomId passed as prop
+      questions: questions.map((q) => ({
+        questionType: q.questionType,
+        description: q.question,
+        answers: q.answers.map((answer) => answer.text),
+        matchAnswers: q.answers
+          .filter((answer) => answer.isCorrect)
+          .map((answer) => answer.text),
+      })),
+    };
+
+    try {
+      const createdQuiz = await createquiz(QuizRequestDTO);
+      Alert.alert('Success', 'Quiz created successfully!');
+      console.log('Created Quiz:', createdQuiz);
+    } catch (error) {
+      Alert.alert('Error', 'Unable to create quiz. Please try again.');
+      console.error('Error creating quiz:', error);
+    }
   };
 
   return (
@@ -240,57 +267,52 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#007BFF',
     borderRadius: 8,
+    backgroundColor: '#ddd',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
   },
   activeTypeButton: {
     backgroundColor: '#007BFF',
   },
   typeButtonText: {
+    color: '#fff',
     fontSize: 16,
-    color: '#007BFF',
   },
   activeTypeButtonText: {
     color: '#fff',
   },
   answerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   correctButton: {
-    marginLeft: 8,
-    padding: 8,
-    backgroundColor: '#007BFF',
+    marginTop: 8,
+    backgroundColor: '#28a745',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
   },
   button: {
     backgroundColor: '#007BFF',
     padding: 12,
     borderRadius: 8,
+    marginBottom: 12,
     alignItems: 'center',
-    marginTop: 12,
-  },
-  addAnswerButton: {
-    backgroundColor: '#5bc0de',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  buttonText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '600',
   },
   cancelButton: {
-    backgroundColor: '#d9534f',
+    backgroundColor: '#ccc',
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  addAnswerButton: {
+    backgroundColor: '#ddd',
+    padding: 12,
+    borderRadius: 8,
     marginTop: 12,
+    alignItems: 'center',
   },
 });

@@ -1,74 +1,128 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   Modal,
   TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import CreateQuizScreen from './createQuiz';
-
-type Answer = {
-  text: string;
-  isCorrect: boolean;
-};
-
-type Question = {
-  question: string;
-  answers: Answer[];
-};
-
-type Quiz = {
-  id: number;
-  title: string;
-  questions: Question[];
-};
+import { useLocalSearchParams } from 'expo-router';
+import { getQuizzes, deleteQuiz } from '../../utilities/classroom/quizzApi'; // Adjust the path if necessary
 
 export default function MyQuizzes() {
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [isModalVisible, setModalVisible] = useState(false);
+  const [quizzes, setQuizzes] = useState([]); // Holds the list of quizzes
+  const [isModalVisible, setModalVisible] = useState(false); // Modal visibility state
+  const [loading, setLoading] = useState(true); // Loading state
 
-  const addQuiz = (newQuiz: Quiz) => {
-    setQuizzes((prev) => [...prev, newQuiz]); // Add the new quiz to the list
+  const local = useLocalSearchParams();
+  const classroomId = parseInt(local.classroomId as string, 10);
+
+  useEffect(() => {
+    let pollingInterval;
+
+    const fetchQuizzes = async () => {
+      try {
+        const response = await getQuizzes(classroomId); // Fetch quizzes
+        setQuizzes(response.quizzes); // Update the quizzes array
+      } catch (error) {
+        console.error('Error fetching quizzes:', error);
+      } finally {
+        setLoading(false); // Stop loading after the first fetch
+      }
+    };
+
+    // Initial fetch
+    fetchQuizzes();
+
+    // Set up polling to fetch quizzes every 10 seconds
+    pollingInterval = setInterval(fetchQuizzes, 5000);
+
+    // Cleanup interval on component unmount
+    return () => {
+      clearInterval(pollingInterval);
+    };
+  }, [classroomId]);
+
+  const addQuiz = (newQuiz) => {
+    setQuizzes((prev) => [...prev, newQuiz]); // Optimistically update quizzes
     setModalVisible(false); // Close the modal
+
+    // Fetch quizzes immediately after adding
+    const fetchQuizzes = async () => {
+      try {
+        const response = await getQuizzes(classroomId);
+        setQuizzes(response.quizzes);
+      } catch (error) {
+        console.error('Error fetching quizzes after adding a new quiz:', error);
+      }
+    };
+
+    fetchQuizzes();
+  };
+
+  const handleDelete = async (quizId) => {
+    Alert.alert(
+      'Delete Quiz',
+      'Are you sure you want to delete this quiz?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteQuiz(quizId); // Call the deleteQuiz function
+              setQuizzes((prev) => prev.filter((quiz) => quiz.id !== quizId)); // Update UI
+            } catch (error) {
+              console.error('Error deleting quiz:', error);
+              Alert.alert('Error', 'Failed to delete quiz. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>My Quizzes</Text>
 
-      {quizzes.length > 0 ? (
+      {loading ? (
+        <ActivityIndicator size="large" color="#007BFF" />
+      ) : quizzes.length > 0 ? (
         <FlatList
           data={quizzes}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <View style={styles.quizItem}>
-              <Text style={styles.quizTitle}>{item.title}</Text>
-              {item.questions.map((q, index) => (
-                <View key={index}>
-                  <Text style={styles.questionText}>Q: {q.question}</Text>
-                  {q.answers.map((ans, idx) => (
-                    <Text key={idx} style={styles.answerText}>
-                      {ans.text} - {ans.isCorrect ? 'Correct' : 'Incorrect'}
-                    </Text>
-                  ))}
-                </View>
-              ))}
+              <Text style={styles.quizName}>{item.name}</Text>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => handleDelete(item.id)}
+              >
+                <Icon name="trash" size={24} color="#FF0000" />
+              </TouchableOpacity>
             </View>
           )}
         />
       ) : (
-        <Text style={styles.errorText}>No quizzes created yet!</Text>
+        <Text style={styles.noQuizzes}>No quizzes available.</Text>
       )}
 
+      {/* Only show the plus sign for creating a quiz */}
       <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
         <Icon name="add-circle" size={56} color="#007BFF" />
       </TouchableOpacity>
 
+      {/* Modal for creating a quiz */}
       <Modal visible={isModalVisible} animationType="slide">
         <CreateQuizScreen
+          classroomId={classroomId} // Passing classroomId as a prop
           onSubmit={(quiz) => addQuiz(quiz)}
           onCancel={() => setModalVisible(false)}
         />
@@ -88,40 +142,44 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 16,
     color: '#333',
+    textAlign: 'center', // Center the title
   },
   quizItem: {
+    backgroundColor: '#fff',
     padding: 16,
-    marginTop: 10,
-    backgroundColor: '#ffffff',
+    marginBottom: 8,
     borderRadius: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  quizName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#007BFF',
+    flex: 1, // Take available space
+    marginRight: 16, // Space between text and delete icon
+  },
+  deleteButton: {
+    backgroundColor: '#FFCCCC', // Light red background for visibility
+    padding: 10,
+    borderRadius: 50, // Circular button
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF0000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
     elevation: 3,
   },
-  quizTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#0056b3',
-    marginBottom: 8,
-  },
-  questionText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#444',
-    marginTop: 8,
-  },
-  answerText: {
-    fontSize: 14,
-    color: '#666',
-    marginLeft: 10,
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#d9534f',
+  noQuizzes: {
     textAlign: 'center',
-    marginTop: 20,
+    fontSize: 16,
+    color: '#888',
+    marginTop: 20, // Add spacing above
   },
   fab: {
     position: 'absolute',
