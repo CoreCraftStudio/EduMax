@@ -1,22 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Button,
   TextInput,
   FlatList,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { addStudentToClassroom, deleteStudentFromClassroom } from '@/utilities/classroom/classroomApi';
+import {
+  getStudentOfClassroom,
+  addStudentToClassroom,
+  deleteStudentFromClassroom,
+} from '@/utilities/classroom/classroomApi';
+import Icon from 'react-native-vector-icons/FontAwesome';
 
 type Student = {
   id: number;
   name: string;
-  classroomId: number;
-  email?: string;
 };
 
 export default function MyStudents() {
@@ -25,49 +27,74 @@ export default function MyStudents() {
 
   const [students, setStudents] = useState<Student[]>([]);
   const [newStudentUsername, setNewStudentUsername] = useState('');
-  const [removeStudentUsername, setRemoveStudentUsername] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Fetch students initially and when students are added or removed
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      const data = await getStudentOfClassroom(classroomId);
+
+      if (data?.students) {
+        const studentList = data.students.map((student: any) => ({
+          id: Date.now() + Math.random(), // Temporary ID for now
+          name: student.username,
+        }));
+        setStudents(studentList);
+      } else {
+        setError('No students found for this classroom.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error fetching students.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch students on page load
+  useEffect(() => {
+    fetchStudents(); // Fetch students when the page loads
+  }, [classroomId]); // Re-fetch if classroomId changes
+
+  // Handle adding a student
   const handleAddStudent = async () => {
     if (newStudentUsername) {
       try {
         setLoading(true);
         const response = await addStudentToClassroom(newStudentUsername, classroomId);
-
         const newStudent: Student = {
-          id: Date.now(), // Temporary unique ID
+          id: Date.now(),
           name: response.username,
-          classroomId,
         };
-
-        setStudents(prevStudents => [...prevStudents, newStudent]);
+        setStudents((prevStudents) => [...prevStudents, newStudent]);
         setNewStudentUsername('');
-      } catch (error) {
-        console.error('Error adding student:', error);
+        setError(null);
+        Alert.alert('Success', 'Student added successfully!');
+        // Refetch students after adding
+        fetchStudents();
+      } catch (error: any) {
+        setError(error.message || 'Error adding student.');
       } finally {
         setLoading(false);
       }
     }
   };
 
-  const handleRemoveStudent = async () => {
-    if (removeStudentUsername) {
-      try {
-        setLoading(true);
-
-        // Call API to delete student
-        await deleteStudentFromClassroom(removeStudentUsername, classroomId);
-
-        // Remove student from local state
-        setStudents(prevStudents =>
-          prevStudents.filter(student => student.name !== removeStudentUsername)
-        );
-        setRemoveStudentUsername('');
-      } catch (error: any) {
-        console.error('Error:', error.message);
-      } finally {
-        setLoading(false);
-      }
+  // Handle removing a student
+  const handleRemoveStudent = async (username: string) => {
+    try {
+      setLoading(true);
+      await deleteStudentFromClassroom(username, classroomId);
+      setStudents((prevStudents) => prevStudents.filter((student) => student.name !== username));
+      setError(null);
+      Alert.alert('Success', 'Student removed successfully!');
+      // Refetch students after removing
+      fetchStudents();
+    } catch (error: any) {
+      setError(error.message || 'Error removing student.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,6 +102,7 @@ export default function MyStudents() {
     <View style={styles.container}>
       <Text style={styles.title}>Students for Classroom ID: {classroomId}</Text>
 
+      {/* Add Student Section */}
       <View style={styles.addContainer}>
         <TextInput
           style={styles.input}
@@ -82,30 +110,28 @@ export default function MyStudents() {
           value={newStudentUsername}
           onChangeText={setNewStudentUsername}
         />
-        <Button title="Add Student" onPress={handleAddStudent} />
-      </View>
-
-      <View style={styles.removeContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter student username to remove"
-          value={removeStudentUsername}
-          onChangeText={setRemoveStudentUsername}
-        />
-        <Button title="Remove Student" color="#d9534f" onPress={handleRemoveStudent} />
+        <TouchableOpacity style={styles.addButton} onPress={handleAddStudent}>
+          <Icon name="plus-circle" size={30} color="#4CAF50" />
+        </TouchableOpacity>
       </View>
 
       {loading ? (
         <Text>Loading...</Text>
+      ) : error ? (
+        <Text style={styles.errorText}>{error}</Text>
       ) : students.length ? (
         <FlatList
           data={students}
-          keyExtractor={item => item.id.toString()}
+          keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
             <View style={styles.studentItem}>
-              <Text style={styles.studentName}>
-                {item.name} (Email: {item.email || 'N/A'})
-              </Text>
+              <Text style={styles.studentName}>{item.name}</Text>
+              <TouchableOpacity
+                onPress={() => handleRemoveStudent(item.name)}
+                style={styles.removeButton}
+              >
+                <Icon name="trash" size={24} color="#d9534f" />
+              </TouchableOpacity>
             </View>
           )}
         />
@@ -129,32 +155,36 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   addContainer: {
-    marginBottom: 16,
-  },
-  removeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
   },
   input: {
+    flex: 1,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
     padding: 12,
-    width: '100%',
-    marginBottom: 8,
     fontSize: 16,
   },
+  addButton: {
+    marginLeft: 12,
+  },
   studentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     marginTop: 8,
     backgroundColor: '#f0f4f8',
     borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
   studentName: {
     fontSize: 18,
     color: '#333',
+  },
+  removeButton: {
+    padding: 8,
   },
   errorText: {
     fontSize: 18,

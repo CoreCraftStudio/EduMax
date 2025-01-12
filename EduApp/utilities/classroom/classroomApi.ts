@@ -148,6 +148,37 @@ export const deleteStudentFromClassroom = async (
   }
 };
 
+export const getStudentOfClassroom = async (
+
+  classroomId: number
+): Promise<StudentResponseDTO> => {
+  try {
+    const token = await getToken(); // Get the authentication token
+
+    // Make DELETE request
+    const response = await api.get<StudentResponseDTO>(
+      `/classrooms/${classroomId}`, // Endpoint
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Pass JWT token in Authorization header
+        },
+        
+      }
+    );
+
+    console.log('Student successfully  fetched:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching student:', error);
+
+    // Handle error with specific messaging
+    throw new Error(
+      error.response?.data?.message || 'Unable to fetch student from the classroom.'
+    );
+  }
+};
+
+
 export const updateParentInClassroom = async (
   studentUsername: string,
   classroomId: number,
