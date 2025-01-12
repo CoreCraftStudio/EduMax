@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store'; // Import SecureStore
 import { login, AuthRequest, AuthResponse } from '@/utilities/authApi';
 
 const LoginScreen: React.FC = () => {
@@ -20,12 +21,21 @@ const LoginScreen: React.FC = () => {
   };
 
   const validateForm = (): boolean => {
-    const { username, profileName, email, phone, type, password } = formData;
-    if (!username || !profileName || !email || !phone || !password) {
-      Alert.alert('Error', 'All fields are required.');
+    const { username, password } = formData;
+    if (!username || !password) {
+      Alert.alert('Error', 'Username and password are required.');
       return false;
     }
     return true;
+  };
+
+  const storeToken = async (token: string) => {
+    try {
+      await SecureStore.setItemAsync('userToken', token);
+      console.log('Token stored successfully!');
+    } catch (error) {
+      console.error('Error storing token:', error);
+    }
   };
 
   const handleLogin = async () => {
@@ -34,16 +44,14 @@ const LoginScreen: React.FC = () => {
     try {
       const response: AuthResponse = await login(formData);
 
-      // Check if the user exists
       if (!response.member) {
         throw new Error('User not found. Please sign up first.');
       }
 
       const { member, type, token } = response;
 
-      console.log(`Member: ${member}`); // Example logging
-      console.log(`Type: ${type}`);    // Example logging
-      console.log(`Token: ${token}`);  // Example logging
+      // Save token to SecureStore
+      await storeToken(token);
 
       Alert.alert('Success', `Welcome back, ${member.profileName || member.username}!`);
 
@@ -71,24 +79,6 @@ const LoginScreen: React.FC = () => {
           placeholder="Username"
           value={formData.username}
           onChangeText={(value) => handleInputChange('username', value)}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Profile Name"
-          value={formData.profileName}
-          onChangeText={(value) => handleInputChange('profileName', value)}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={formData.email}
-          onChangeText={(value) => handleInputChange('email', value)}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Phone"
-          value={formData.phone}
-          onChangeText={(value) => handleInputChange('phone', value)}
         />
         <TextInput
           style={styles.input}

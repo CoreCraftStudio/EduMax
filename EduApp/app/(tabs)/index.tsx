@@ -1,25 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList, ActivityIndicator, Text } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import { fetchClassrooms } from '@/utilities/classroom/classroomApi';
-
-const Tab = createBottomTabNavigator();
+import {
+  View,
+  StyleSheet,
+  ActivityIndicator,
+  Text,
+  TouchableOpacity,
+  Alert,
+  TextInput,
+  Button,
+  SafeAreaView,
+  ScrollView,
+} from 'react-native';
+import { fetchClassrooms, createClassroom, deleteClassroom } from '@/utilities/classroom/classroomApi';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 type Classroom = {
   id: number;
   name: string;
 };
 
-const ClassroomsTab = ({ token }: { token: string }) => {
+export default function ClassroomsTab({ token }: { token: string }) {
+  const local = useLocalSearchParams();
+  const type = local.type; // Retrieve local search params
+  const router = useRouter(); // Initialize the router for navigation
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [newClassroomName, setNewClassroomName] = useState<string>('');
 
+  console.log('User Type:', type); // Log user type for debugging
+
+  // Fetch classrooms when the component mounts
   useEffect(() => {
     const loadClassrooms = async () => {
       try {
-        const fetchedClassrooms = await fetchClassrooms(token);
+        const fetchedClassrooms = await fetchClassrooms();
         setClassrooms(fetchedClassrooms);
       } catch (err) {
         setError('Failed to fetch classrooms.');
@@ -30,6 +45,57 @@ const ClassroomsTab = ({ token }: { token: string }) => {
     loadClassrooms();
   }, [token]);
 
+  // Handle classroom press with navigation
+  const handleClassroomPress = (classroom: Classroom) => {
+    router.push(`/${classroom.id}`); // Navigate to the respective route
+    router.setParams({id:classroom.id}) // Log classroom name for debugging
+  };
+  
+  // Handle create classroom (restricted to teacher type)
+  const handleCreateClassroom = async () => {
+    if (!newClassroomName.trim()) {
+      Alert.alert('Invalid Input', 'Please provide a classroom name.');
+      return;
+    }
+
+    try {
+      const createdClassroom = await createClassroom({ name: newClassroomName });
+      setClassrooms((prevClassrooms) => [...prevClassrooms, createdClassroom]);
+      setNewClassroomName(''); // Clear input after successful creation
+      Alert.alert('Classroom Created', `Classroom ${createdClassroom.name} created successfully.`);
+    } catch (error) {
+      setError('Failed to create classroom.');
+    }
+  };
+
+  // Handle delete classroom (available for all types)
+  const handleDeleteClassroom = async (classroomId: number) => {
+    Alert.alert(
+      'Confirm Deletion',
+      'Are you sure you want to delete this classroom?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Confirm',
+          onPress: async () => {
+            try {
+              await deleteClassroom(classroomId);
+              setClassrooms((prevClassrooms) => prevClassrooms.filter((classroom) => classroom.id !== classroomId));
+              Alert.alert('Classroom Deleted', 'Classroom deleted successfully.');
+            } catch (error) {
+              setError('Failed to delete classroom.');
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  // Loading and error states
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -48,64 +114,101 @@ const ClassroomsTab = ({ token }: { token: string }) => {
   }
 
   return (
-    <FlatList
-      data={classrooms}
-      keyExtractor={(item) => item.id.toString()}
-      renderItem={({ item }) => (
-        <View style={styles.classroomItem}>
-          <Text style={styles.classroomText}>ID: {item.id}</Text>
-          <Text style={styles.classroomText}>Name: {item.name}</Text>
+    <View style={styles.container}>
+      {type === 'teacher' && (
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter classroom name"
+            value={newClassroomName}
+            onChangeText={setNewClassroomName}
+          />
+          <Button title="Add Classroom" onPress={handleCreateClassroom} />
         </View>
       )}
-      contentContainerStyle={styles.classroomList}
-    />
-  );
-};
-
-const NotificationsTab = () => (
-  <View style={styles.centeredContainer}>
-    <Text style={styles.title}>Notifications</Text>
-    <Text style={styles.subtitle}>This tab displays notifications.</Text>
-  </View>
-);
-
-export default function HomeScreen({ token }: { token: string }) {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ color, size }) => {
-          let iconName = route.name === 'Classrooms' ? 'ios-school' : 'ios-notifications';
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: '#007BFF',
-        tabBarInactiveTintColor: 'gray',
-      })}
-    >
-      <Tab.Screen name="Classrooms">
-        {() => <ClassroomsTab token={token} />}
-      </Tab.Screen>
-      <Tab.Screen name="Notifications" component={NotificationsTab} />
-    </Tab.Navigator>
+      <SafeAreaView>
+        <ScrollView contentContainerStyle={styles.classroomList}>
+          {classrooms.map((item) => (
+            <View key={item.id} style={styles.classroomItem}>
+              <TouchableOpacity
+                style={styles.classroomButton}
+                onPress={() => handleClassroomPress(item)}
+              >
+                <Text style={styles.classroomButtonText}>{item.name}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => handleDeleteClassroom(item.id)}
+              >
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10, fontSize: 16, color: '#007BFF' },
-  errorText: { color: 'red', fontSize: 16 },
-  classroomList: { padding: 16 },
-  classroomItem: {
+  container: {
+    flex: 1,
     padding: 16,
-    backgroundColor: '#f0f4f8',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#007BFF',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 16,
+  },
+  classroomList: {
+    marginTop: 20,
+    paddingBottom: 16,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  input: {
+    height: 40,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  classroomButton: {
+    padding: 16,
+    backgroundColor: '#007BFF',
     marginBottom: 12,
     borderRadius: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    alignItems: 'center',
   },
-  classroomText: { fontSize: 16, color: '#333' },
-  centeredContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#555' },
+  classroomButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  classroomItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    backgroundColor: '#FF4D4D',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
 });
