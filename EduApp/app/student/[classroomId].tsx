@@ -8,20 +8,11 @@ export default function ClassroomDetail() {
   console.log('classroomId:', classroomId);
   // Navigate to the quizzes screen and pass classroomId
   const handleQuizzes = (id: number) => {
-    router.push({
-      pathname: '/my-quizzes',
-      params: { classroomId: id }, // Pass classroomId as a query parameter
-    });
-  };
-
+     router.push('./my-quizzes', );
+     router.setParams({classroomId: id})
+   };
   // Navigate to the students screen and pass classroomId
-  const handleStudents = (id: number) => {
-    router.push({
-      pathname: '/my-students',
-      params: { classroomId: id }, // Pass classroomId as a query parameter
-    });
-  };
-
+ 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Classroom {classroomId}</Text>
@@ -31,9 +22,7 @@ export default function ClassroomDetail() {
         <Text style={styles.button} onPress={() => handleQuizzes(classroomId)}>
           My Quizzes
         </Text>
-        <Text style={styles.button} onPress={() => handleStudents(classroomId)}>
-          My Students
-        </Text>
+      
       </View>
     </View>
   );

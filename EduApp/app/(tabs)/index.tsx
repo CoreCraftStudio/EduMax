@@ -47,8 +47,17 @@ export default function ClassroomsTab({ token }: { token: string }) {
 
   // Handle classroom press with navigation
   const handleClassroomPress = (classroom: Classroom) => {
-    router.push(`/${classroom.id}`); // Navigate to the respective route
-    router.setParams({id:classroom.id}) // Log classroom name for debugging
+    if (type === 'teacher') {
+      router.push({
+        pathname: '/teacher/[classroomId]',
+        params: { id: classroom.id }, // Pass classroomId for teacher
+      });
+    } else if (type === 'student') {
+      router.push({
+        pathname: '/student/[classroomId]',
+        params: { id: classroom.id }, // Pass classroomId for student
+      });
+    }
   };
   
   // Handle create classroom (restricted to teacher type)

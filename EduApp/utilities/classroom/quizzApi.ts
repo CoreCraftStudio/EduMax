@@ -1,11 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import api from '../api';
 
-export interface QuizRequestDTO {
-  title: string;
-  description: string;
-  // Add other fields as per your requirements
-}
+
 
 export interface AnswerSetRequestDTO {
   quizId: number;
@@ -13,12 +9,38 @@ export interface AnswerSetRequestDTO {
   // Add other fields related to answers
 }
 
-export interface QuizResponseDTO {
-  quizId: number;
-  title: string;
+export interface QuizRequestDTO {
+  name: string;
   description: string;
-  // Add other fields based on your response structure
+  classroomId: number;
+  questions: {
+    questionType: string;
+    question: string;
+    answers: string[];
+    matchAnswers: string[];
+  }[];
 }
+
+export interface QuizResponseDTO {
+  quiz: {
+    id: number;
+    name: string;
+    description: string;
+    questions: Question[];
+    totalMark: number;
+    maxMarks: number;
+  };
+}
+
+export interface Question {
+  question: string;
+  answers: string[]; // List of possible answers
+  matchAnswers: string[]; // List of correct answers
+  selectedAnswers: string[]; // List of answers selected by the user
+  type: string; // Question type (e.g., "multiple-choice", "short-answer")
+  mark: number; // Mark scored for the question
+}
+
 
 // Function to get the token from Secure Store
 const getToken = async (): Promise<string> => {
@@ -97,5 +119,26 @@ export const getQuizzes = async (classroomId: number): Promise<QuizResponseDTO[]
   } catch (error) {
     console.error('Error fetching quizzes:', error);
     throw new Error('Unable to fetch quizzes.');
+  }
+};
+
+// Function to get quiz details
+export const fetchQuizDetails = async (quizId: number): Promise<QuizResponseDTO> => {
+  try {
+    const token = await getToken();
+    console.log('Fetching quiz details for quiz ID:', quizId);
+    const response = await api.get<QuizResponseDTO>(`/quizzes/${quizId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      params: {
+        quizId, // Pass classroomId as a query parameter
+      },
+    });
+    return response.data;
+    console.log('Quiz details fetched successfully:', response.data);
+  } catch (error) {
+    console.error('Error fetching quiz details:', error);
+    throw new Error('Unable to fetch quiz details.');
   }
 };

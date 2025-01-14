@@ -7,10 +7,15 @@ export interface Classroom {
 }
 
 export interface StudentResponseDTO {
-
   username: string;
-  classroomId: number;
+  profileName: string;
+  email: string;
+  phone: string;
+  parentUsername: string;
+  parentPhone: string;
+  parentEmail: string;
 }
+
 
 export interface ClassroomsResponse {
   classrooms: Classroom[];
@@ -96,7 +101,7 @@ export const addStudentToClassroom = async (studentUsername: string, classroomId
     const token = await getToken(); // Get token from storage
     const response = await api.put<StudentResponseDTO>(
       `/classrooms/${classroomId}`, // Endpoint with classroomId in the path
-      null, // No request body for this PUT request
+    
       {
         headers: {
           Authorization: `Bearer ${token}`, // Pass JWT token in the header
@@ -161,6 +166,9 @@ export const getStudentOfClassroom = async (
       {
         headers: {
           Authorization: `Bearer ${token}`, // Pass JWT token in Authorization header
+        },
+        params: {
+          classroomId, // Pass the student username as a query parameter
         },
         
       }

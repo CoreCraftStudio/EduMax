@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import CreateQuizScreen from './createQuiz';
 import { useLocalSearchParams } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native'; // Import for component focus
 import { getQuizzes, deleteQuiz } from '../../utilities/classroom/quizzApi'; // Adjust the path if necessary
 
 export default function MyQuizzes() {
@@ -22,47 +23,29 @@ export default function MyQuizzes() {
   const local = useLocalSearchParams();
   const classroomId = parseInt(local.classroomId as string, 10);
 
-  useEffect(() => {
-    let pollingInterval;
+  const fetchQuizzes = async () => {
+    try {
+      setLoading(true);
+      const response = await getQuizzes(classroomId); // Fetch quizzes
+      setQuizzes(response.quizzes); // Update the quizzes arrayA
+    } catch (error) {
+      console.error('Error fetching quizzes:', error);
+    } finally {
+      setLoading(false); // Stop loading after fetch
+    }
+  };
 
-    const fetchQuizzes = async () => {
-      try {
-        const response = await getQuizzes(classroomId); // Fetch quizzes
-        setQuizzes(response.quizzes); // Update the quizzes array
-      } catch (error) {
-        console.error('Error fetching quizzes:', error);
-      } finally {
-        setLoading(false); // Stop loading after the first fetch
-      }
-    };
+  // Fetch quizzes when the component gains focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchQuizzes(); // Poll quizzes when the screen is focused
+    }, [classroomId])
+  );
 
-    // Initial fetch
-    fetchQuizzes();
-
-    // Set up polling to fetch quizzes every 10 seconds
-    pollingInterval = setInterval(fetchQuizzes, 5000);
-
-    // Cleanup interval on component unmount
-    return () => {
-      clearInterval(pollingInterval);
-    };
-  }, [classroomId]);
-
-  const addQuiz = (newQuiz) => {
+  const addQuiz = async (newQuiz) => {
     setQuizzes((prev) => [...prev, newQuiz]); // Optimistically update quizzes
     setModalVisible(false); // Close the modal
-
-    // Fetch quizzes immediately after adding
-    const fetchQuizzes = async () => {
-      try {
-        const response = await getQuizzes(classroomId);
-        setQuizzes(response.quizzes);
-      } catch (error) {
-        console.error('Error fetching quizzes after adding a new quiz:', error);
-      }
-    };
-
-    fetchQuizzes();
+    await fetchQuizzes(); // Fetch quizzes after adding a new one
   };
 
   const handleDelete = async (quizId) => {
@@ -77,7 +60,8 @@ export default function MyQuizzes() {
           onPress: async () => {
             try {
               await deleteQuiz(quizId); // Call the deleteQuiz function
-              setQuizzes((prev) => prev.filter((quiz) => quiz.id !== quizId)); // Update UI
+              setQuizzes((prev) => prev.filter((quiz) => quiz.id !== quizId)); // Optimistically update UI
+              await fetchQuizzes(); // Fetch quizzes after deletion
             } catch (error) {
               console.error('Error deleting quiz:', error);
               Alert.alert('Error', 'Failed to delete quiz. Please try again.');
@@ -91,6 +75,12 @@ export default function MyQuizzes() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>My Quizzes</Text>
+
+      {/* Refresh Button */}
+      <TouchableOpacity style={styles.refreshButton} onPress={fetchQuizzes}>
+        <Icon name="refresh" size={24} color="#007BFF" />
+        <Text style={styles.refreshText}>Refresh</Text>
+      </TouchableOpacity>
 
       {loading ? (
         <ActivityIndicator size="large" color="#007BFF" />
@@ -185,5 +175,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 20,
     right: 20,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  refreshText: {
+    fontSize: 16,
+    color: '#007BFF',
+    marginLeft: 8,
   },
 });
