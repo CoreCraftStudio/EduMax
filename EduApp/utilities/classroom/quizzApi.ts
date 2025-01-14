@@ -5,19 +5,26 @@ import api from '../api';
 
 export interface AnswerSetRequestDTO {
   quizId: number;
-  answers: string[];
-  // Add other fields related to answers
+  answerSet: AnswerSet[];
 }
+
+export interface AnswerSet {
+  questionId: number;
+  answers: string[];
+}
+
 
 export interface QuizRequestDTO {
   name: string;
   description: string;
   classroomId: number;
   questions: {
-    questionType: string;
+    type: string;
     question: string;
     answers: string[];
     matchAnswers: string[];
+    mark: number;
+    selectedAnswers: string[];
   }[];
 }
 

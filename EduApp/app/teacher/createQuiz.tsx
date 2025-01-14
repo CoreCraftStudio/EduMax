@@ -16,8 +16,8 @@ type Answer = {
 };
 
 type Question = {
-  description: string;
-  questionType: string;
+  question: string;
+  type: string;
   answers: Answer[];
 };
 
@@ -73,15 +73,19 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
       Alert.alert('Error', 'Please complete all answers.');
       return;
     }
-
+    
     const questionToAdd: Question = {
-      description: currentQuestion,
-      questionType: currentQuestionType,
+      question: currentQuestion, // This maps currentQuestion
+      type: currentQuestionType,
       answers:
         currentQuestionType === 'short-answer'
           ? [{ text: directAnswer, isCorrect: true }]
           : currentAnswers,
     };
+
+
+    setQuestions((prev) => [...prev, questionToAdd]);
+    
 
     setQuestions((prev) => [...prev, questionToAdd]);
     resetInputs();
@@ -125,29 +129,34 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
       Alert.alert('Error', 'Quiz must have a name and at least one question.');
       return;
     }
-
+  
     const quizRequestDTO = {
       name: quizName,
-      description: 'This is a sample quiz to test knowledge on various subjects.',
       classroomId,
+      description:"lol",
       questions: questions.map((q) => ({
-        questionType: q.questionType,
-        description: q.description,
+        type: q.type,
+        question: q.question, // This ensures currentQuestion is included
         answers: q.answers.map((answer) => answer.text),
         matchAnswers: q.answers
           .filter((answer) => answer.isCorrect)
           .map((answer) => answer.text),
       })),
     };
+    
+    console.log(quizRequestDTO);
 
+  
     try {
       const response = await createquiz(quizRequestDTO);
       Alert.alert('Success', 'Quiz created successfully!');
       onSubmit(response?.quizzes[0]);
     } catch (error) {
+      console.error('Error creating quiz:', error);
       Alert.alert('Error', 'Unable to create quiz. Please try again.');
     }
   };
+  
 
   const canAddAnswer =
     currentQuestionType === 'multiple-response' &&

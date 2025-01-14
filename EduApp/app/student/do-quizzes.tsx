@@ -64,9 +64,11 @@ export default function DoQuizzes() {
           <View key={index} style={styles.questionCard}>
             <Text style={styles.questionText}>
               Q{index + 1}: {question.question}
+             
             </Text>
+          
             <Text style={styles.questionType}>Type: {question.type}</Text>
-
+            console.log('Question:', question.question);
             {(question.answers || []).length > 0 && (
   <View style={styles.answersContainer}>
     <Text style={styles.answersTitle}>Answers:</Text>
