@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, Alert, ScrollView } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { signup, AuthRequest, AuthResponse } from '@/utilities/authApi';
 
@@ -9,7 +10,7 @@ const SignupScreen: React.FC = () => {
     profileName: '',
     email: '',
     phone: '',
-    type: '',
+    type: '',  // Will be set from Picker
     password: '',
   });
 
@@ -22,9 +23,13 @@ const SignupScreen: React.FC = () => {
   const handleSignup = async () => {
     try {
       const response: AuthResponse = await signup(formData);
-      const { member } = response;
-      Alert.alert('Success', `Signup successful! Welcome, ${member.username || formData.username}.`);
-      router.push('/login');
+      const { username, profileName, token } = response;
+
+      // Save token to SecureStore or handle it as needed
+      // Example: storeToken(token);
+
+      Alert.alert('Success', `Signup successful! Welcome, ${profileName || username}.`);
+      router.push('/login'); // Redirect to login screen
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Signup failed. Please try again.';
       Alert.alert('Error', errorMessage);
@@ -59,12 +64,19 @@ const SignupScreen: React.FC = () => {
           value={formData.phone}
           onChangeText={(value) => handleInputChange('phone', value)}
         />
-        <TextInput
-          style={styles.input}
-          placeholder="Type (teacher/student)"
-          value={formData.type}
-          onChangeText={(value) => handleInputChange('type', value)}
-        />
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={formData.type}
+            onValueChange={(itemValue) => handleInputChange('type', itemValue)}
+            style={styles.picker}
+          >
+            <Picker.Item label="Select Type" value="" />
+            <Picker.Item label="Student" value="student" />
+            <Picker.Item label="Teacher" value="teacher" />
+            <Picker.Item label="Parent" value="parent" />
+          </Picker>
+        </View>
+
         <TextInput
           style={styles.input}
           placeholder="Password"
@@ -96,7 +108,14 @@ const styles = StyleSheet.create({
   formContainer: {
     width: '100%',
     marginTop: 60,
+   
   },
+  label: {
+    marginBottom: 5,
+    fontSize: 16,
+    color: '#ccc',
+  },
+ 
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
@@ -104,6 +123,18 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 8,
     fontSize: 16,
+    height: 55,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 10,
+    overflow: 'hidden', // To prevent border-radius from breaking the Picker display
+  },
+  picker: {
+    height: 55,
+    width: '100%',
   },
 });
 

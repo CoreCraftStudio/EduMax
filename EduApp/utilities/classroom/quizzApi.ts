@@ -35,11 +35,12 @@ export interface QuizResponseDTO {
     description: string;
     questions: Question[];
     totalMark: number;
-    maxMarks: number;
+    maxMark: number;
   };
 }
 
 export interface Question {
+  id: number;
   question: string;
   answers: string[]; // List of possible answers
   matchAnswers: string[]; // List of correct answers
@@ -96,6 +97,7 @@ export const deleteQuiz = async (quizId: number): Promise<void> => {
 export const createAnswer = async (answerSetRequestDTO: AnswerSetRequestDTO): Promise<QuizResponseDTO> => {
   try {
     const token = await getToken(); // Get token from storage
+    console.log('Creating answers for quiz ID:', answerSetRequestDTO);
     const response = await api.put<QuizResponseDTO>('/quizzes', answerSetRequestDTO, {
       headers: {
         Authorization: `Bearer ${token}`, // Pass JWT token in the header
@@ -142,8 +144,9 @@ export const fetchQuizDetails = async (quizId: number): Promise<QuizResponseDTO>
         quizId, // Pass classroomId as a query parameter
       },
     });
-    return response.data;
     console.log('Quiz details fetched successfully:', response.data);
+    return response.data;
+    
   } catch (error) {
     console.error('Error fetching quiz details:', error);
     throw new Error('Unable to fetch quiz details.');

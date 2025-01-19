@@ -44,21 +44,22 @@ const LoginScreen: React.FC = () => {
     try {
       const response: AuthResponse = await login(formData);
 
-      if (!response.member) {
-        throw new Error('User not found. Please sign up first.');
+      // Check if the response contains necessary details
+      if (!response.token) {
+        throw new Error('Invalid credentials or user not found.');
       }
 
-      const { member, type, token } = response;
+      const { username, profileName, type, token } = response;
 
       // Save token to SecureStore
       await storeToken(token);
 
-      Alert.alert('Success', `Welcome back, ${member.profileName || member.username}!`);
+      Alert.alert('Success', `Welcome back, ${profileName || username}!`);
 
       // Navigate to dynamic route with username and type
       router.push({
         pathname: '/(tabs)',
-        params: { username: member.username, type }, // Pass type as a parameter
+        params: { username, type }, // Pass type as a parameter
       });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'Login failed. Please try again.';

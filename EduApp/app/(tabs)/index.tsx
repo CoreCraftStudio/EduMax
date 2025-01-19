@@ -30,20 +30,23 @@ export default function ClassroomsTab({ token }: { token: string }) {
 
   console.log('User Type:', type); // Log user type for debugging
 
-  // Fetch classrooms when the component mounts
+  // Fetch classrooms
+  const loadClassrooms = async () => {
+    setLoading(true);
+    try {
+      const fetchedClassrooms = await fetchClassrooms();
+      setClassrooms(fetchedClassrooms);
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch classrooms.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadClassrooms = async () => {
-      try {
-        const fetchedClassrooms = await fetchClassrooms();
-        setClassrooms(fetchedClassrooms);
-      } catch (err) {
-        setError('Failed to fetch classrooms.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadClassrooms();
-  }, [token]);
+    loadClassrooms(); // Load classrooms on component mount
+  }, []);
 
   // Handle classroom press with navigation
   const handleClassroomPress = (classroom: Classroom) => {
@@ -59,7 +62,7 @@ export default function ClassroomsTab({ token }: { token: string }) {
       });
     }
   };
-  
+
   // Handle create classroom (restricted to teacher type)
   const handleCreateClassroom = async () => {
     if (!newClassroomName.trim()) {
@@ -69,15 +72,15 @@ export default function ClassroomsTab({ token }: { token: string }) {
 
     try {
       const createdClassroom = await createClassroom({ name: newClassroomName });
-      setClassrooms((prevClassrooms) => [...prevClassrooms, createdClassroom]);
-      setNewClassroomName(''); // Clear input after successful creation
       Alert.alert('Classroom Created', `Classroom ${createdClassroom.name} created successfully.`);
+      setNewClassroomName(''); // Clear input after successful creation
+      loadClassrooms(); // Refresh classrooms after creating
     } catch (error) {
       setError('Failed to create classroom.');
     }
   };
 
-  // Handle delete classroom (available for all types)
+  // Handle delete classroom
   const handleDeleteClassroom = async (classroomId: number) => {
     Alert.alert(
       'Confirm Deletion',
@@ -92,8 +95,8 @@ export default function ClassroomsTab({ token }: { token: string }) {
           onPress: async () => {
             try {
               await deleteClassroom(classroomId);
-              setClassrooms((prevClassrooms) => prevClassrooms.filter((classroom) => classroom.id !== classroomId));
               Alert.alert('Classroom Deleted', 'Classroom deleted successfully.');
+              loadClassrooms(); // Refresh classrooms after deletion
             } catch (error) {
               setError('Failed to delete classroom.');
             }
@@ -135,6 +138,9 @@ export default function ClassroomsTab({ token }: { token: string }) {
           <Button title="Add Classroom" onPress={handleCreateClassroom} />
         </View>
       )}
+      <TouchableOpacity style={styles.refreshButton} onPress={loadClassrooms}>
+        <Text style={styles.refreshButtonText}>Refresh</Text>
+      </TouchableOpacity>
       <SafeAreaView>
         <ScrollView contentContainerStyle={styles.classroomList}>
           {classrooms.map((item) => (
@@ -192,6 +198,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     marginBottom: 10,
+  },
+  refreshButton: {
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#4CAF50',
+    marginVertical: 10,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   classroomButton: {
     padding: 16,

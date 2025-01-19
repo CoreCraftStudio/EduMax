@@ -14,16 +14,14 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface Member {
-    username: string;
-    profileName: string;
-    email: string;
-    phone: string; // Optional if not always returned
-  }
-  
+
 
 export interface AuthResponse {
-  member: Member;
+  username: string;
+  profileName: string;
+  freemium: boolean;
+  phone: string;
+  email: string;
   type: string;
   token: string;
 }

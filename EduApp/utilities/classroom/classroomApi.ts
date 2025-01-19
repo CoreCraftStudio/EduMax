@@ -7,6 +7,10 @@ export interface Classroom {
 }
 
 export interface StudentResponseDTO {
+  students: Student[];
+}
+
+export interface Student {
   username: string;
   profileName: string;
   email: string;
@@ -101,7 +105,7 @@ export const addStudentToClassroom = async (studentUsername: string, classroomId
     const token = await getToken(); // Get token from storage
     const response = await api.put<StudentResponseDTO>(
       `/classrooms/${classroomId}`, // Endpoint with classroomId in the path
-    
+      null, // PUT request without a body
       {
         headers: {
           Authorization: `Bearer ${token}`, // Pass JWT token in the header
@@ -111,14 +115,14 @@ export const addStudentToClassroom = async (studentUsername: string, classroomId
         },
       }
     );
-    console.log("Success full in addition:", response.data); // Log success if the request works
+    console.log("Successfully added student:", response.data); // Log success if the request works
     return response.data;
-    
   } catch (error) {
     console.error('Error adding student to classroom:', error);
     throw new Error('Unable to add student to classroom.');
   }
 };
+
 
 
 export const deleteStudentFromClassroom = async (

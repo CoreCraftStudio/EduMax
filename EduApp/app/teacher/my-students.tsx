@@ -13,6 +13,8 @@ import {
   getStudentOfClassroom,
   addStudentToClassroom,
   deleteStudentFromClassroom,
+  StudentResponseDTO,
+  
 } from '@/utilities/classroom/classroomApi';
 import Icon from 'react-native-vector-icons/FontAwesome';
 

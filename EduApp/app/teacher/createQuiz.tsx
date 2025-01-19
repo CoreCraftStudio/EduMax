@@ -8,17 +8,11 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { createquiz } from '../../utilities/classroom/quizzApi';
+import { createquiz, Question, QuizRequestDTO } from '../../utilities/classroom/quizzApi';
 
 type Answer = {
   text: string;
   isCorrect: boolean;
-};
-
-type Question = {
-  question: string;
-  type: string;
-  answers: Answer[];
 };
 
 type Props = {
@@ -32,16 +26,16 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState('');
   const [currentQuestionType, setCurrentQuestionType] = useState('multiple-choice');
-  const [currentAnswers, setCurrentAnswers] = useState<Answer[]>([
-    { text: '', isCorrect: false },
-    { text: '', isCorrect: false },
-    { text: '', isCorrect: false },
-    { text: '', isCorrect: false },
-  ]);
+  const [currentAnswers, setCurrentAnswers] = useState<Answer[]>([]);
   const [directAnswer, setDirectAnswer] = useState('');
+  const [matchAnswers, setMatchAnswers] = useState<string[]>([]); // Store correct answers dynamically
 
   useEffect(() => {
-    if (currentQuestionType === 'multiple-choice' || currentQuestionType === 'multiple-response') {
+    resetAnswers();
+  }, [currentQuestionType]);
+
+  const resetAnswers = () => {
+    if (['multiple-choice', 'multiple-response'].includes(currentQuestionType)) {
       setCurrentAnswers([
         { text: '', isCorrect: false },
         { text: '', isCorrect: false },
@@ -51,7 +45,8 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
     } else {
       setCurrentAnswers([{ text: '', isCorrect: true }]);
     }
-  }, [currentQuestionType]);
+    setMatchAnswers([]); // Reset matchAnswers when the question type changes
+  };
 
   const isInputValid = (input: string) => input.trim().length > 0;
 
@@ -61,67 +56,55 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
       return;
     }
 
-    if (currentQuestionType === 'multiple-response') {
-      const correctAnswersCount = currentAnswers.filter((ans) => ans.isCorrect).length;
-      if (correctAnswersCount < 2) {
+    if (['multiple-choice', 'multiple-response'].includes(currentQuestionType)) {
+      if (currentAnswers.some((ans) => !isInputValid(ans.text))) {
+        Alert.alert('Error', 'Please complete all answers.');
+        return;
+      }
+      if (
+        currentQuestionType === 'multiple-response' &&
+        currentAnswers.filter((ans) => ans.isCorrect).length < 2
+      ) {
         Alert.alert('Error', 'Multiple-response questions require at least 2 correct answers.');
+        return;
+      }
+      if (
+        currentQuestionType === 'multiple-choice' &&
+        currentAnswers.filter((ans) => ans.isCorrect).length !== 1
+      ) {
+        Alert.alert('Error', 'Multiple-choice questions require exactly one correct answer.');
         return;
       }
     }
 
-    if (currentAnswers.some((ans) => !isInputValid(ans.text))) {
-      Alert.alert('Error', 'Please complete all answers.');
-      return;
-    }
-    
     const questionToAdd: Question = {
-      question: currentQuestion, // This maps currentQuestion
+      id:1,
+      question: currentQuestion,
       type: currentQuestionType,
-      answers:
-        currentQuestionType === 'short-answer'
-          ? [{ text: directAnswer, isCorrect: true }]
-          : currentAnswers,
+      answers: currentAnswers.map((ans) => ans.text),
+      matchAnswers: matchAnswers, // Use the updated matchAnswers array
+      selectedAnswers: [],
+      mark: 0, // Default mark set to 0
     };
-
-
-    setQuestions((prev) => [...prev, questionToAdd]);
-    
 
     setQuestions((prev) => [...prev, questionToAdd]);
     resetInputs();
     Alert.alert('Success', 'Question added successfully!');
   };
 
-  const resetInputs = () => {
-    setCurrentQuestion('');
-    setDirectAnswer('');
-    if (currentQuestionType === 'multiple-choice' || currentQuestionType === 'multiple-response') {
-      setCurrentAnswers([
-        { text: '', isCorrect: false },
-        { text: '', isCorrect: false },
-        { text: '', isCorrect: false },
-        { text: '', isCorrect: false },
-      ]);
-    } else {
-      setCurrentAnswers([{ text: '', isCorrect: true }]);
-    }
-  };
-
   const handleMarkCorrect = (idx: number) => {
-    if (currentQuestionType === 'multiple-choice') {
-      setCurrentAnswers((prev) =>
-        prev.map((answer, i) => ({
-          ...answer,
-          isCorrect: i === idx,
-        }))
+    setCurrentAnswers((prev) => {
+      const updatedAnswers = prev.map((answer, i) =>
+        i === idx ? { ...answer, isCorrect: !answer.isCorrect } : answer
       );
-    } else if (currentQuestionType === 'multiple-response') {
-      setCurrentAnswers((prev) =>
-        prev.map((answer, i) =>
-          i === idx ? { ...answer, isCorrect: !answer.isCorrect } : answer
-        )
-      );
-    }
+      const updatedMatchAnswers = updatedAnswers
+        .filter((ans) => ans.isCorrect)
+        .map((ans) => ans.text);
+
+      setCurrentAnswers(updatedAnswers);
+      setMatchAnswers(updatedMatchAnswers); // Update matchAnswers when correct answers are marked
+      return updatedAnswers;
+    });
   };
 
   const handleSubmit = async () => {
@@ -129,26 +112,23 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
       Alert.alert('Error', 'Quiz must have a name and at least one question.');
       return;
     }
-  
-    const quizRequestDTO = {
+
+    const QuizRequestDTO: QuizRequestDTO = {
       name: quizName,
       classroomId,
-      description:"lol",
+      description: 'A quiz created in the classroom',
       questions: questions.map((q) => ({
         type: q.type,
-        question: q.question, // This ensures currentQuestion is included
-        answers: q.answers.map((answer) => answer.text),
-        matchAnswers: q.answers
-          .filter((answer) => answer.isCorrect)
-          .map((answer) => answer.text),
+        question: q.question,
+        answers: q.answers,
+        matchAnswers: q.matchAnswers,
+        mark: q.mark,
+        selectedAnswers: q.selectedAnswers,
       })),
     };
-    
-    console.log(quizRequestDTO);
 
-  
     try {
-      const response = await createquiz(quizRequestDTO);
+      const response = await createquiz(QuizRequestDTO);
       Alert.alert('Success', 'Quiz created successfully!');
       onSubmit(response?.quizzes[0]);
     } catch (error) {
@@ -156,12 +136,17 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
       Alert.alert('Error', 'Unable to create quiz. Please try again.');
     }
   };
-  
 
   const canAddAnswer =
     currentQuestionType === 'multiple-response' &&
     currentAnswers.length < 10 &&
     currentAnswers[currentAnswers.length - 1]?.text.trim() !== '';
+
+  const resetInputs = () => {
+    setCurrentQuestion('');
+    setDirectAnswer('');
+    resetAnswers();
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -178,7 +163,6 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
         value={currentQuestion}
         onChangeText={setCurrentQuestion}
       />
-      {/* Question type selection */}
       <View style={styles.typeSelector}>
         {['multiple-choice', 'multiple-response', 'short-answer'].map((type) => (
           <TouchableOpacity
@@ -200,7 +184,6 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
           </TouchableOpacity>
         ))}
       </View>
-      {/* Answers */}
       {['multiple-choice', 'multiple-response'].includes(currentQuestionType) ? (
         <>
           {currentAnswers.map((ans, idx) => (
@@ -233,7 +216,7 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
               </TouchableOpacity>
             </View>
           ))}
-          {currentQuestionType === 'multiple-response' && canAddAnswer && (
+          {canAddAnswer && (
             <TouchableOpacity
               style={styles.addAnswerButton}
               onPress={() =>
@@ -252,7 +235,6 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
           onChangeText={setDirectAnswer}
         />
       )}
-      {/* Buttons */}
       <TouchableOpacity style={styles.button} onPress={addQuestion}>
         <Text style={styles.buttonText}>Add Question</Text>
       </TouchableOpacity>
@@ -265,6 +247,7 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
     </ScrollView>
   );
 }
+
 const styles = StyleSheet.create({
   scrollContainer: {
     padding: 16,
