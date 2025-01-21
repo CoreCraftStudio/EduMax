@@ -11,10 +11,17 @@
     "ios": {
       "supportsTablet": true
     },
+    "splash": {
+    "image": "./assets/images/adaptive-icon.png",
+    "backgroundColor": "#FEF9B0",
+    "resizeMode": "cover"
+   },
+    
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
+        
       },
       "package": "com.rashmikarathnayaka.EduApp"
     },

@@ -7,30 +7,31 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
-  Button,
-  SafeAreaView,
   ScrollView,
+  ImageBackground,
 } from 'react-native';
+import * as Animatable from 'react-native-animatable'; // For animations
 import { fetchClassrooms, createClassroom, deleteClassroom } from '@/utilities/classroom/classroomApi';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import HeaderAdderBar from '@/components/HeaderAdderBar';
 
 type Classroom = {
   id: number;
   name: string;
 };
 
-export default function ClassroomsTab({ token }: { token: string }) {
+export default function Tab({ token }: { token: string }) {
   const local = useLocalSearchParams();
-  const type = local.type; // Retrieve local search params
-  const router = useRouter(); // Initialize the router for navigation
+  const type = local.type;
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newClassroomName, setNewClassroomName] = useState<string>('');
 
-  console.log('User Type:', type); // Log user type for debugging
-
-  // Fetch classrooms
   const loadClassrooms = async () => {
     setLoading(true);
     try {
@@ -45,25 +46,23 @@ export default function ClassroomsTab({ token }: { token: string }) {
   };
 
   useEffect(() => {
-    loadClassrooms(); // Load classrooms on component mount
+    loadClassrooms();
   }, []);
 
-  // Handle classroom press with navigation
   const handleClassroomPress = (classroom: Classroom) => {
     if (type === 'teacher') {
       router.push({
         pathname: '/teacher/[classroomId]',
-        params: { id: classroom.id }, // Pass classroomId for teacher
+        params: { id: classroom.id },
       });
     } else if (type === 'student') {
       router.push({
         pathname: '/student/[classroomId]',
-        params: { id: classroom.id }, // Pass classroomId for student
+        params: { id: classroom.id },
       });
     }
   };
 
-  // Handle create classroom (restricted to teacher type)
   const handleCreateClassroom = async () => {
     if (!newClassroomName.trim()) {
       Alert.alert('Invalid Input', 'Please provide a classroom name.');
@@ -73,30 +72,26 @@ export default function ClassroomsTab({ token }: { token: string }) {
     try {
       const createdClassroom = await createClassroom({ name: newClassroomName });
       Alert.alert('Classroom Created', `Classroom ${createdClassroom.name} created successfully.`);
-      setNewClassroomName(''); // Clear input after successful creation
-      loadClassrooms(); // Refresh classrooms after creating
+      setNewClassroomName('');
+      loadClassrooms();
     } catch (error) {
       setError('Failed to create classroom.');
     }
   };
 
-  // Handle delete classroom
   const handleDeleteClassroom = async (classroomId: number) => {
     Alert.alert(
       'Confirm Deletion',
       'Are you sure you want to delete this classroom?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
           onPress: async () => {
             try {
               await deleteClassroom(classroomId);
               Alert.alert('Classroom Deleted', 'Classroom deleted successfully.');
-              loadClassrooms(); // Refresh classrooms after deletion
+              loadClassrooms();
             } catch (error) {
               setError('Failed to delete classroom.');
             }
@@ -107,12 +102,16 @@ export default function ClassroomsTab({ token }: { token: string }) {
     );
   };
 
-  // Loading and error states
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007BFF" />
-        <Text style={styles.loadingText}>Loading classrooms...</Text>
+        <ImageBackground
+          source={require('@/assets/images/load.jpg')}
+          style={styles.loadingImage}
+        >
+          <ActivityIndicator size="large" color="#007BFF" />
+          <Text style={styles.loadingText}>Loading classrooms...</Text>
+        </ImageBackground>
       </View>
     );
   }
@@ -126,59 +125,91 @@ export default function ClassroomsTab({ token }: { token: string }) {
   }
 
   return (
-    <View style={styles.container}>
-      {type === 'teacher' && (
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter classroom name"
-            value={newClassroomName}
-            onChangeText={setNewClassroomName}
-          />
-          <Button title="Add Classroom" onPress={handleCreateClassroom} />
-        </View>
-      )}
-      <TouchableOpacity style={styles.refreshButton} onPress={loadClassrooms}>
-        <Text style={styles.refreshButtonText}>Refresh</Text>
-      </TouchableOpacity>
-      <SafeAreaView>
+    <ImageBackground
+      source={require('@/assets/images/4.jpg')}
+      style={styles.background}
+    >
+      <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        {type === 'teacher' && (
+         <HeaderAdderBar
+         value={newClassroomName}
+         onChangeText={setNewClassroomName}
+         onSubmit={handleCreateClassroom}
+         placeholder="Enter classroom name"
+         animation="fadeIn"
+         duration={1000}
+         iconSize={28}
+         iconColor="#333"
+         containerStyle={{ 
+           backgroundColor: 'rgba(223, 239, 223, 0.5)', 
+           marginTop: 16 ,
+         
+         }}
+         inputStyle={{ 
+          //  borderColor: 'black', 
+           
+           backgroundColor: 'rgba(223, 239, 223, 0.5)', 
+         }}
+         buttonStyle={{ 
+           padding: 1 
+         }}
+       />
+       
+        )}
+
         <ScrollView contentContainerStyle={styles.classroomList}>
           {classrooms.map((item) => (
-            <View key={item.id} style={styles.classroomItem}>
+            <TouchableOpacity
+              key={item.id}
+              style={styles.classroomButton}
+              onPress={() => handleClassroomPress(item)}
+            >
+              <Text style={styles.classroomButtonText}>{item.name}</Text>
               <TouchableOpacity
-                style={styles.classroomButton}
-                onPress={() => handleClassroomPress(item)}
-              >
-                <Text style={styles.classroomButtonText}>{item.name}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteButton}
+                style={styles.iconButton}
                 onPress={() => handleDeleteClassroom(item.id)}
               >
-                <Text style={styles.deleteButtonText}>Delete</Text>
+                <MaterialIcons name="delete" size={24} color="#FF4D4D" />
               </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
-      </SafeAreaView>
-    </View>
+        <Animatable.View animation="fadeInUp" duration={800} style={styles.refreshButton}>
+          <TouchableOpacity style={styles.refreshButton} onPress={loadClassrooms}>
+         
+          <Ionicons name="refresh" size={35} color="black" />
+          </TouchableOpacity>
+        </Animatable.View>
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  background: {
     flex: 1,
-    padding: 16,
+    resizeMode: 'cover',
+  },
+  container: {
+    flex: 2,
+    paddingHorizontal: 16,
+   
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingImage: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#007BFF',
+    color: 'Black',
   },
   errorText: {
     color: 'red',
@@ -188,54 +219,27 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingBottom: 16,
   },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  input: {
-    height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-  },
-  refreshButton: {
-    alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#4CAF50',
-    marginVertical: 10,
-    borderRadius: 8,
-  },
-  refreshButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
   classroomButton: {
-    padding: 16,
-    backgroundColor: '#007BFF',
-    marginBottom: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  classroomButtonText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  classroomItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  deleteButton: {
-    backgroundColor: '#FF4D4D',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    padding: 16,
+    backgroundColor: 'hsla(120, 11.10%, 96.50%, 0.50)',
+    marginBottom: 12,
     borderRadius: 8,
   },
-  deleteButtonText: {
-    color: '#fff',
+  classroomButtonText: {
+    fontSize: 16,
+    color: '#000',
     fontWeight: 'bold',
+  },
+  iconButton: {
+    padding: 4,
+  },
+  refreshButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    marginVertical: 10,
   },
 });

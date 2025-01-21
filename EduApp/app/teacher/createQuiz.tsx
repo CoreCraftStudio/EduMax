@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  ImageBackground,
 } from 'react-native';
 import { createquiz, Question, QuizRequestDTO } from '../../utilities/classroom/quizzApi';
 
@@ -78,7 +79,7 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
     }
 
     const questionToAdd: Question = {
-      id:1,
+      id: 1,
       question: currentQuestion,
       type: currentQuestionType,
       answers: currentAnswers.map((ans) => ans.text),
@@ -94,6 +95,18 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
 
   const handleMarkCorrect = (idx: number) => {
     setCurrentAnswers((prev) => {
+      // For multiple-choice questions, only allow one correct answer at a time
+      if (currentQuestionType === 'multiple-choice') {
+        const updatedAnswers = prev.map((answer, i) => ({
+          ...answer,
+          isCorrect: i === idx ? !answer.isCorrect : false, // Only one correct answer allowed
+        }));
+        setCurrentAnswers(updatedAnswers);
+        setMatchAnswers([updatedAnswers[idx].text]); // Set matchAnswers with the correct answer only
+        return updatedAnswers;
+      }
+
+      // For other question types, toggle the correctness of the selected answer
       const updatedAnswers = prev.map((answer, i) =>
         i === idx ? { ...answer, isCorrect: !answer.isCorrect } : answer
       );
@@ -102,7 +115,7 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
         .map((ans) => ans.text);
 
       setCurrentAnswers(updatedAnswers);
-      setMatchAnswers(updatedMatchAnswers); // Update matchAnswers when correct answers are marked
+      setMatchAnswers(updatedMatchAnswers);
       return updatedAnswers;
     });
   };
@@ -149,109 +162,118 @@ export default function CreateQuizScreen({ classroomId, onSubmit, onCancel }: Pr
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <Text style={styles.title}>Create a New Quiz</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Quiz Name"
-        value={quizName}
-        onChangeText={setQuizName}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Enter Question"
-        value={currentQuestion}
-        onChangeText={setCurrentQuestion}
-      />
-      <View style={styles.typeSelector}>
-        {['multiple-choice', 'multiple-response', 'short-answer'].map((type) => (
-          <TouchableOpacity
-            key={type}
-            onPress={() => setCurrentQuestionType(type)}
-            style={[
-              styles.typeButton,
-              currentQuestionType === type && styles.activeTypeButton,
-            ]}
-          >
-            <Text
-              style={[
-                styles.typeButtonText,
-                currentQuestionType === type && styles.activeTypeButtonText,
-              ]}
-            >
-              {type.replace('-', ' ')}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      {['multiple-choice', 'multiple-response'].includes(currentQuestionType) ? (
-        <>
-          {currentAnswers.map((ans, idx) => (
-            <View key={idx} style={styles.answerContainer}>
-              <TextInput
-                style={[
-                  styles.input,
-                  ans.isCorrect && { borderColor: '#28a745', borderWidth: 2 },
-                ]}
-                placeholder={`Answer ${idx + 1}`}
-                value={ans.text}
-                onChangeText={(text) =>
-                  setCurrentAnswers((prev) => {
-                    const updated = [...prev];
-                    updated[idx].text = text;
-                    return updated;
-                  })
-                }
-              />
-              <TouchableOpacity
-                onPress={() => handleMarkCorrect(idx)}
-                style={[
-                  styles.correctButton,
-                  ans.isCorrect && { backgroundColor: '#28a745' },
-                ]}
-              >
-                <Text style={styles.buttonText}>
-                  {ans.isCorrect ? 'Correct' : 'Mark Correct'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-          {canAddAnswer && (
-            <TouchableOpacity
-              style={styles.addAnswerButton}
-              onPress={() =>
-                setCurrentAnswers((prev) => [...prev, { text: '', isCorrect: false }])
-              }
-            >
-              <Text style={styles.buttonText}>Add Answer</Text>
-            </TouchableOpacity>
-          )}
-        </>
-      ) : (
+    <ImageBackground
+      source={require('../../assets/images/5.jpg')} // Add the path to your image
+      style={styles.backgroundImage}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <Text style={styles.title}>Create a New Quiz</Text>
         <TextInput
           style={styles.input}
-          placeholder="Type the correct answer"
-          value={directAnswer}
-          onChangeText={setDirectAnswer}
+          placeholder="Quiz Name"
+          value={quizName}
+          onChangeText={setQuizName}
         />
-      )}
-      <TouchableOpacity style={styles.button} onPress={addQuestion}>
-        <Text style={styles.buttonText}>Add Question</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>Submit Quiz</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
-        <Text style={styles.buttonText}>Cancel</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter Question"
+          value={currentQuestion}
+          onChangeText={setCurrentQuestion}
+        />
+        <View style={styles.typeSelector}>
+          {['multiple-choice', 'multiple-response', 'short-answer'].map((type) => (
+            <TouchableOpacity
+              key={type}
+              onPress={() => setCurrentQuestionType(type)}
+              style={[
+                styles.typeButton,
+                currentQuestionType === type && styles.activeTypeButton,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  currentQuestionType === type && styles.activeTypeButtonText,
+                ]}
+              >
+                {type.replace('-', ' ')}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {['multiple-choice', 'multiple-response'].includes(currentQuestionType) ? (
+          <>
+            {currentAnswers.map((ans, idx) => (
+              <View key={idx} style={styles.answerContainer}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    ans.isCorrect && { borderColor: '#28a745', borderWidth: 2 },
+                  ]}
+                  placeholder={`Answer ${idx + 1}`}
+                  value={ans.text}
+                  onChangeText={(text) =>
+                    setCurrentAnswers((prev) => {
+                      const updated = [...prev];
+                      updated[idx].text = text;
+                      return updated;
+                    })
+                  }
+                />
+                <TouchableOpacity
+                  onPress={() => handleMarkCorrect(idx)}
+                  style={[
+                    styles.correctButton,
+                    ans.isCorrect && { backgroundColor: '#28a745' },
+                  ]}
+                >
+                  <Text style={styles.buttonText}>
+                    {ans.isCorrect ? 'Correct' : 'Mark Correct'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            {canAddAnswer && (
+              <TouchableOpacity
+                style={styles.addAnswerButton}
+                onPress={() =>
+                  setCurrentAnswers((prev) => [...prev, { text: '', isCorrect: false }])
+                }
+              >
+                <Text style={styles.buttonText}>Add Answer</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        ) : (
+          <TextInput
+            style={styles.input}
+            placeholder="Type the correct answer"
+            value={directAnswer}
+            onChangeText={setDirectAnswer}
+          />
+        )}
+        <TouchableOpacity style={styles.button} onPress={addQuestion}>
+          <Text style={styles.buttonText}>Add Question</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+          <Text style={styles.buttonText}>Submit Quiz</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
+          <Text style={styles.buttonText}>Cancel</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContainer: {
+  backgroundImage: {
+    flex: 1,
+    resizeMode: 'cover',
+    justifyContent: 'center',
     padding: 16,
-    backgroundColor: '#F3F4F6',
+  },
+  scrollContainer: {
     flexGrow: 1,
   },
   title: {

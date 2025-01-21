@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, ImageBackground } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store'; // Import SecureStore
 import { login, AuthRequest, AuthResponse } from '@/utilities/authApi';
@@ -13,7 +22,7 @@ const LoginScreen: React.FC = () => {
     type: '',
     password: '',
   });
-
+  const [loading, setLoading] = useState(false); // State to handle button disabling/loading
   const router = useRouter();
 
   const handleInputChange = (field: keyof AuthRequest, value: string) => {
@@ -41,42 +50,39 @@ const LoginScreen: React.FC = () => {
   const handleLogin = async () => {
     if (!validateForm()) return;
 
+    setLoading(true); // Set loading to true to disable the button
     try {
       const response: AuthResponse = await login(formData);
 
-      // Check if the response contains necessary details
       if (!response.token) {
         throw new Error('Invalid credentials or user not found.');
       }
 
       const { username, profileName, type, token } = response;
 
-      // Save token to SecureStore
       await storeToken(token);
-
       Alert.alert('Success', `Welcome back, ${profileName || username}!`);
 
-      // Navigate to dynamic route with username and type
       router.push({
         pathname: '/(tabs)',
-        params: { username, type }, // Pass type as a parameter
+        params: { username, type },
       });
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message || 'Login failed. Please try again.';
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Login failed. Please try again.';
       Alert.alert('Error', errorMessage);
+    } finally {
+      setLoading(false); // Reset loading state after completion
     }
   };
 
   return (
-    <ImageBackground
-      source={require('../assets/images/icon.png')} // Replace with your image path
-      style={styles.container}
-      resizeMode="cover"
-    >
+    <View style={styles.container}>
       <View style={styles.innerContainer}>
         <Text style={styles.title}>Login</Text>
         <TextInput
           style={styles.input}
+          placeholderTextColor="black"
           placeholder="Username"
           value={formData.username}
           onChangeText={(value) => handleInputChange('username', value)}
@@ -84,19 +90,31 @@ const LoginScreen: React.FC = () => {
         <TextInput
           style={styles.input}
           placeholder="Password"
+          placeholderTextColor="black"
           secureTextEntry
           value={formData.password}
           onChangeText={(value) => handleInputChange('password', value)}
         />
-        <Button title="Login" onPress={handleLogin} />
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleLogin}
+          disabled={loading} // Disable button when loading
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Login</Text>
+          )}
+        </TouchableOpacity>
       </View>
-    </ImageBackground>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   innerContainer: {
     flex: 1,
@@ -116,6 +134,20 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 8,
     fontSize: 16,
+  },
+  button: {
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    backgroundColor: '#9E9E9E',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
   },
 });
 

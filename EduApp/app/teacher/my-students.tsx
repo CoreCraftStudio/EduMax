@@ -7,6 +7,7 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
+  ImageBackground,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import {
@@ -14,7 +15,6 @@ import {
   addStudentToClassroom,
   deleteStudentFromClassroom,
   StudentResponseDTO,
-  
 } from '@/utilities/classroom/classroomApi';
 import Icon from 'react-native-vector-icons/FontAwesome';
 
@@ -79,6 +79,9 @@ export default function MyStudents() {
         setError(error.message || 'Error adding student.');
       } finally {
         setLoading(false);
+        setError(null);
+        fetchStudents();
+       
       }
     }
   };
@@ -101,46 +104,48 @@ export default function MyStudents() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Students for Classroom ID: {classroomId}</Text>
+    <ImageBackground source={require('../../assets/images/2.jpg')} style={styles.backgroundImage}>
+      <View style={styles.container}>
+        <Text style={styles.title}>Enrolled Students</Text>
 
-      {/* Add Student Section */}
-      <View style={styles.addContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter student username to add"
-          value={newStudentUsername}
-          onChangeText={setNewStudentUsername}
-        />
-        <TouchableOpacity style={styles.addButton} onPress={handleAddStudent}>
-          <Icon name="plus-circle" size={30} color="#4CAF50" />
-        </TouchableOpacity>
+        {/* Add Student Section */}
+        <View style={styles.addContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter student username to add"
+            value={newStudentUsername}
+            onChangeText={setNewStudentUsername}
+          />
+          <TouchableOpacity style={styles.addButton} onPress={handleAddStudent}>
+            <Icon name="user-plus" size={30} color="black" />
+          </TouchableOpacity>
+        </View>
+
+        {loading ? (
+          <Text>Loading...</Text>
+        ) : error ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : students.length ? (
+          <FlatList
+            data={students}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <View style={styles.studentItem}>
+                <Text style={styles.studentName}>{item.name}</Text>
+                <TouchableOpacity
+                  onPress={() => handleRemoveStudent(item.name)}
+                  style={styles.removeButton}
+                >
+                  <Icon name="trash" size={24} color="#d9534f" />
+                </TouchableOpacity>
+              </View>
+            )}
+          />
+        ) : (
+          <Text style={styles.errorText}>No students in this classroom.</Text>
+        )}
       </View>
-
-      {loading ? (
-        <Text>Loading...</Text>
-      ) : error ? (
-        <Text style={styles.errorText}>{error}</Text>
-      ) : students.length ? (
-        <FlatList
-          data={students}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.studentItem}>
-              <Text style={styles.studentName}>{item.name}</Text>
-              <TouchableOpacity
-                onPress={() => handleRemoveStudent(item.name)}
-                style={styles.removeButton}
-              >
-                <Icon name="trash" size={24} color="#d9534f" />
-              </TouchableOpacity>
-            </View>
-          )}
-        />
-      ) : (
-        <Text style={styles.errorText}>No students in this classroom.</Text>
-      )}
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -148,18 +153,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#fff',
+  },
+  backgroundImage: {
+    flex: 1,
+    resizeMode: 'cover', // Ensures the background image covers the entire screen
+    justifyContent: 'center',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 16,
     color: '#333',
+    textAlign: 'center',
   },
   addContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
+    justifyContent: 'center',
   },
   input: {
     flex: 1,
@@ -178,7 +189,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     marginTop: 8,
-    backgroundColor: '#f0f4f8',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)', // Semi-transparent background
     borderRadius: 8,
   },
   studentName: {
